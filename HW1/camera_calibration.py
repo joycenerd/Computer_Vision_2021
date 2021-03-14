@@ -5,6 +5,15 @@ import matplotlib.pyplot as plt
 import camera_calibration_show_extrinsics as show
 from PIL import Image
 
+
+def is_positive_definite(A):
+    try:
+        _ = np.linalg.cholesky(A)
+        return True
+    except np.LinAlgError:
+        return False
+
+
 if __name__ == '__main__':
     # prepare object points, like (0,0,0), (1,0,0), (2,0,0) ....,(6,5,0)
     # (8,6) is for the given testing images.
@@ -74,11 +83,13 @@ if __name__ == '__main__':
         each_imgpoints = imgpoints[i]
         objpoints[:, 2] = 1
         extra_col = np.ones((objpoints.shape[1], 1))
-        imgpoints = np.squeeze(imgpoints, 0)
-        imgpoints = np.append(imgpoints, extra_col, axis=1)
-        h, status = cv2.findHomography(objpoints, imgpoints)
+        each_imgpoints = np.squeeze(each_imgpoints, 1)
+        each_imgpoints = np.append(each_imgpoints, extra_col, axis=1)
+        h, status = cv2.findHomography(each_objpoints, each_imgpoints)
 
         # get B #################################
+
+        # get the coefficient of the B matrix by h1.T*B*h2=0
         coeff = [
             h[1, 0] * h[0, 0],
             h[1, 0] * h[0, 1] + h[0, 0] * h[1, 1],
@@ -88,6 +99,41 @@ if __name__ == '__main__':
             h[1, 2] * h[0, 2]
         ]
         coeff_mat.append(coeff)
+    coeff_mat = np.array(coeff_mat)
+
+    # solve B by svd
+    U, sig, Vt = np.linalg.svd(coeff_mat)
+    V = Vt.T
+    B = V[:, -1]
+
+    B_mat = np.array([B[0], B[1], B[2],
+                      B[1], B[3], B[4],
+                      B[2], B[4], B[5]])
+    B_mat = B_mat.reshape(3, 3)
+    # print(B_mat)
+
+    # convert B to positive semi-definite
+    BB = (B_mat + B_mat.T) / 2
+    _, s, V = np.linalg.svd(BB)
+    H = np.dot(V.T, np.dot(np.diag(s), V))
+    B2 = (BB + H) / 2
+    B3 = (B2 + B2.T) / 2
+    if not is_positive_definite(B3):
+        print("yes")
+        spacing = np.spacing(np.linalg.norm(B))
+        I = np.eye(B_mat.shape[0])
+        k = 1
+        while not is_positive_definite(B3):
+            min_eig = np.min(np.real(np.linalg.eigvals(B3)))
+            B3 += I * (-min_eig * k ** 2 + spacing)
+            k += 1
+    B_mat = B3
+    print(B_mat)
+
+    B_inv = np.linalg.inv(B_mat)
+    print(B_inv)
+    K = np.linalg.cholesky(B_inv)
+    print(K)
 
     """
     # show the camera extrinsics
