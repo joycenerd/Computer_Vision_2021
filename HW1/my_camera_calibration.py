@@ -38,9 +38,9 @@ if __name__ == '__main__':
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
         # rotate the image with it is horizontal (default verticle)
-        if img.shape[1] - img.shape[0] >= 0:
+        if img.shape[1]-img.shape[0]>=0:
             print(fname, " need rotation")
-            gray = np.rot90(gray)
+            gray=np.rot90(gray)
 
         plt.imshow(gray)
 
@@ -72,16 +72,63 @@ if __name__ == '__main__':
     # You need to comment these functions and write your calibration function from scratch.
     # Notice that rvecs is rotation vector, not the rotation matrix, and tvecs is translation vector.
     # In practice, you'll derive extrinsics matrixes directly. The shape must be [pts_num,3,4], and use them to plot.
-    ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, img_size,None,None)
-    Vr = np.array(rvecs)
-    Tr = np.array(tvecs)
-    extrinsics = np.concatenate((Vr, Tr), axis=1).reshape(-1,6)
-    print(mtx)
-    # Write your code here
+    # ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, img_size, None, None)
+    # Vr = np.array(rvecs)
+    # Tr = np.array(tvecs)
+    # extrinsics = np.concatenate((Vr, Tr), axis=1).reshape(-1, 6)
 
 
-    
+    imgpoints=imgpoints.reshape((imgpoints.reshape[0],(corner_x*corner_y),2))
+    coeff_mat = []
+
+    for each_imagpoints,each_objpoints in zip(imgpoints,objpoints):
+
+
+        # find homography matrix ##############################
+        coeff=np.zeros((corner_x*corner_y*2,9))
+        coeff[2 * i, :] = [corner_obj[0], corner_obj[1], 1, 0, 0, 0, (-1) * corner_obj[0] * corner_img[0],
+                              (-1) * corner_obj[1] * corner_img[0], (-1) * corner_img[0]]
+        coeff[2 * i + 1, :] = [0, 0, 0, corner_obj[0], corner_obj[1], 1, (-1) * corner_obj[0] * corner_img[1],
+                                  (-1) * corner_obj[1] * corner_img[1], (-1) * corner_img[1]]
+        i += 1
+
+        u, s, vh = np.linalg.svd(coeff, full_matrices=False)
+
+        h = vh.T[:, -1]
+
+        # make every homography matrix's vectors are in the same direction
+        if h[-1] < 0:
+            h = h * (-1)
+
+
+        # find B matrix ##############################
+        coeff = [
+            h[0,1] * h[0,0],
+            h[0,1] * h[1,0] + h[1,1] * h[0,0],
+            h[0,1] * h[2,0] + h[2,1] * h[0,0],
+            h[1,1] * h[1,0],
+            h[1,1] * h[2,0] + h[2,1] * h[1,0],
+            h[2,1] * h[2,0]
+        ]
+        coeff_mat.append(coeff)
+
+        coeff = [
+            h[0, 0] ** 2 - h[0, 1] ** 2,
+            2 * (h[0, 0] * h[1, 0] - h[0, 1] * h[1, 1]),
+            2 * (h[0, 0] * h[2, 0] - h[0, 1] * h[2, 1]),
+            h[1, 0] ** 2 - h[1, 1] ** 2,
+            2 * (h[1, 0] * h[2, 0] - h[1, 1] * h[2, 1]),
+            h[2, 0] ** 2 - h[2, 1] ** 2
+        ]
+        coeff_mat.append(coeff)
+
+    coeff_mat=np.array(coeff)
+
+
+
+
     # show the camera extrinsics
+    """
     print('Show the camera extrinsics')
     # plot setting
     # You can modify it for better visualization
@@ -89,8 +136,8 @@ if __name__ == '__main__':
     ax = fig.gca(projection='3d')
     # camera setting
     camera_matrix = mtx
-    cam_width = 0.064/0.1
-    cam_height = 0.032/0.1
+    cam_width = 0.064 / 0.1
+    cam_height = 0.032 / 0.1
     scale_focal = 1600
     # chess board setting
     board_width = 8
@@ -100,29 +147,30 @@ if __name__ == '__main__':
     # True -> fix board, moving cameras
     # False -> fix camera, moving boards
     min_values, max_values = show.draw_camera_boards(ax, camera_matrix, cam_width, cam_height,
-                                                    scale_focal, extrinsics, board_width,
-                                                    board_height, square_size, True)
-    
+                                                     scale_focal, extrinsics, board_width,
+                                                     board_height, square_size, True)
+
     X_min = min_values[0]
     X_max = max_values[0]
     Y_min = min_values[1]
     Y_max = max_values[1]
     Z_min = min_values[2]
     Z_max = max_values[2]
-    max_range = np.array([X_max-X_min, Y_max-Y_min, Z_max-Z_min]).max() / 2.0
-    
-    mid_x = (X_max+X_min) * 0.5
-    mid_y = (Y_max+Y_min) * 0.5
-    mid_z = (Z_max+Z_min) * 0.5
+    max_range = np.array([X_max - X_min, Y_max - Y_min, Z_max - Z_min]).max() / 2.0
+
+    mid_x = (X_max + X_min) * 0.5
+    mid_y = (Y_max + Y_min) * 0.5
+    mid_z = (Z_max + Z_min) * 0.5
     ax.set_xlim(mid_x - max_range, mid_x + max_range)
     ax.set_ylim(mid_y - max_range, 0)
     ax.set_zlim(mid_z - max_range, mid_z + max_range)
-    
+
     ax.set_xlabel('x')
     ax.set_ylabel('z')
     ax.set_zlabel('-y')
     ax.set_title('Extrinsic Parameters Visualization')
     plt.show()
+    """
 
     # animation for rotating plot
     """
