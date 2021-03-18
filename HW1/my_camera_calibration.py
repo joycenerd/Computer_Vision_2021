@@ -78,19 +78,23 @@ if __name__ == '__main__':
     # extrinsics = np.concatenate((Vr, Tr), axis=1).reshape(-1, 6)
 
 
-    imgpoints=imgpoints.reshape((imgpoints.reshape[0],(corner_x*corner_y),2))
+    objpoints=np.array(objpoints)
+    imgpoints=np.array(imgpoints)
+    imgpoints=imgpoints.reshape((imgpoints.shape[0],(corner_x*corner_y),2))
     coeff_mat = []
 
     for each_imagpoints,each_objpoints in zip(imgpoints,objpoints):
 
 
         # find homography matrix ##############################
-        coeff=np.zeros((corner_x*corner_y*2,9))
-        coeff[2 * i, :] = [corner_obj[0], corner_obj[1], 1, 0, 0, 0, (-1) * corner_obj[0] * corner_img[0],
-                              (-1) * corner_obj[1] * corner_img[0], (-1) * corner_img[0]]
-        coeff[2 * i + 1, :] = [0, 0, 0, corner_obj[0], corner_obj[1], 1, (-1) * corner_obj[0] * corner_img[1],
-                                  (-1) * corner_obj[1] * corner_img[1], (-1) * corner_img[1]]
-        i += 1
+        i=0
+        for corner_img,corner_obj in zip(each_imagpoints,each_objpoints):
+            coeff=np.zeros((corner_x*corner_y*2,9))
+            coeff[2 * i, :] = [corner_obj[0], corner_obj[1], 1, 0, 0, 0, (-1) * corner_obj[0] * corner_img[0],
+                                  (-1) * corner_obj[1] * corner_img[0], (-1) * corner_img[0]]
+            coeff[2 * i + 1, :] = [0, 0, 0, corner_obj[0], corner_obj[1], 1, (-1) * corner_obj[0] * corner_img[1],
+                                      (-1) * corner_obj[1] * corner_img[1], (-1) * corner_img[1]]
+            i += 1
 
         u, s, vh = np.linalg.svd(coeff, full_matrices=False)
 
@@ -99,6 +103,7 @@ if __name__ == '__main__':
         # make every homography matrix's vectors are in the same direction
         if h[-1] < 0:
             h = h * (-1)
+        h=h.reshape((3,3))
 
 
         # find B matrix ##############################
@@ -122,8 +127,21 @@ if __name__ == '__main__':
         ]
         coeff_mat.append(coeff)
 
-    coeff_mat=np.array(coeff)
+    coeff_mat=np.array(coeff_mat)
 
+    # solve nullspace to get B
+    u,s,v=np.linalg.svd(coeff_mat,full_matrices=False)
+    v=v.T
+    B=v[:,-1]
+    if B[0]<0 or B[3]<0 or B[5]<0: # no negative diagonal is accepted in cholesky
+        b=b*(-1)
+    B_mat=[[B[0],B[1],B[2]],
+           [B[1],B[3],B[4]],
+           B[2],B[4],B[5]]
+    B_inv=np.linalg.inv(B_mat)
+    K=np.linalg.cholesky(B_inv).T
+    K/=K[2][2]
+    print(K)
 
 
 
