@@ -30,7 +30,7 @@ In this project I wrote my own version of camera calibration and compare with th
     </tr>
     <tr>
         <td><img src="./results/sample_intrinsic.png"</td>
-        <td border=3 height=100 width=100><img src="./results/my_intrinsic.png"</td>
+        <td><img src="./results/my_intrinsic.png"</td>
     </tr>
 </table>
 
