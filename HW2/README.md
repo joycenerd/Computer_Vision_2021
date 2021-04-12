@@ -1,4 +1,4 @@
-# Image Color and Resolution
+# Image Resolution
 
 Implementation of Hybrid image -> Blend two images, one preserving only low frequency and another preserving only high frequency
 
