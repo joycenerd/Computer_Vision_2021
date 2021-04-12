@@ -29,7 +29,8 @@ if __name__ == '__main__':
     imgpoints = []  # points in image plane.
 
     # Make a list of calibration images
-    images = glob.glob('data/*.jpeg')
+    #images = glob.glob('data/*.jpg')
+    images=glob.glob('my_data/*.jpeg')
 
     # Step through the list and search for chessboard corners
     print('Start finding chessboard corners...')
