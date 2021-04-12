@@ -33,7 +33,7 @@ def inv_fourier_transform(F):
 if __name__=='__main__':
 	if not os.path.exists("./results"):
 		os.mkdir("./results")
-	num_list=["0","1","2","3","4","5","6"]
+	num_list=["0","1","2","3","4","5","6","7"]
 	for num in num_list:
 		image_pair=[]
 		plt.figure(figsize=(10,4))
