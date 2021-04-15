@@ -53,7 +53,7 @@ if __name__=='__main__':
 			F=fourier_transform(feature)
 
 			# H(u,v) -> low pass filter
-			H=gauss_low_pass(height1,width1,5)
+			H=gauss_low_pass(height1,width1,8)
 
 			# F(u,v)*H(u,v)
 			low_pass_image=F*H
@@ -83,7 +83,7 @@ if __name__=='__main__':
 			F=fourier_transform(feature)
 
 			# H(u,v) -> high pass filter
-			H=gauss_low_pass(height2,width2,5)
+			H=gauss_low_pass(height2,width2,8)
 			H=1-H
 
 			high_pass_image=F*H
@@ -111,6 +111,7 @@ if __name__=='__main__':
 		plt.imshow(blend_image)
 
 		plt.savefig("./results/"+num+".jpg")
+		plt.show()
 
 		print(f'{num} completed')
 
