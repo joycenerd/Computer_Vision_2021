@@ -69,9 +69,58 @@ def draw_matching(good_matches, kp1, kp2, img1, img2):
     return match_img
 
 
+def find_homography(coor1, coor2, coor3, coor4):
+    H = np.zeros((8, 9))
+    p1 = np.zeros((4, 2))
+    p2 = np.zeros((4, 2))
+    p1[0, :] = [coor1[0], coor1[1]]
+    p2[0, :] = [coor1[2], coor1[3]]
+    p1[1, :] = [coor2[0], coor2[1]]
+    p2[1, :] = [coor2[2], coor2[3]]
+    p1[2, :] = [coor3[0], coor3[1]]
+    p2[2, :] = [coor3[2], coor3[3]]
+    p1[3, :] = [coor4[0], coor4[1]]
+    p2[3, :] = [coor4[2], coor4[3]]
+    for i in range(4):
+        H[i, :] = [
+            p1[i][1],
+            p1[i][0],
+            1,
+            0,
+            0,
+            0,
+            -p2[i][1] * p1[i][1],
+            -p2[i][1] * p1[i][0],
+            -p2[i][1],
+        ]
+        H[2 * i + 1, :] = [
+            0,
+            0,
+            0,
+            p1[i][1],
+            p1[i][0],
+            1,
+            -p2[i][0] * p1[i][1],
+            -p2[i][0] * p1[i][0],
+            -p2[i][0],
+        ]
+        [U, S, V] = np.linalg.svd(H)
+        homography = V[-1, :]
+        homography = np.reshape(homography, (3, 3))
+        return homography
+
+
 def RANSAC(correspondence):
     for i in range(1000):
-        coor1
+        rand_choice = list(np.random.random(size=4) * correspondence.shape[0])
+        rand_choice = list(map(int, rand_choice))
+        coor1 = correspondence[rand_choice[0]]
+        coor2 = correspondence[rand_choice[1]]
+        coor3 = correspondence[rand_choice[2]]
+        coor4 = correspondence[rand_choice[3]]
+        homography = find_homography(coor1, coor2, coor3, coor4)
+        print(homography)
+        break
 
 
 def feature_matching(desc1, desc2, p1, p2, img1, img2):
@@ -86,17 +135,20 @@ def feature_matching(desc1, desc2, p1, p2, img1, img2):
         kp1[i] = p1[match.trainIdx].pt
         kp2[i] = p2[match.queryIdx].pt
         correspondence[i, :] = [kp1[i][0], kp1[i][1], kp2[i][0], kp2[i][1]]
-    print(correspondence)
 
     match_img = draw_matching(good_matches, kp1, kp2, img1, img2)
     plt.figure(figsize=(20, 10))
     plt.imshow(match_img)
     plt.savefig(SAVE_PATH + "/hill_feature_matching.jpg")
     plt.show()
+    return correspondence
 
 
 if __name__ == "__main__":
     image1 = cv2.imread(DATA_PATH + "/hill1.jpg")
     image2 = cv2.imread(DATA_PATH + "/hill2.jpg")
     points1, descriptors1, points2, descriptors2 = detect_interest_p(image1, image2)
-    feature_matching(descriptors1, descriptors2, points1, points2, image1, image2)
+    correspondence = feature_matching(
+        descriptors1, descriptors2, points1, points2, image1, image2
+    )
+    RANSAC(correspondence)
