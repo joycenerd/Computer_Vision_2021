@@ -181,7 +181,10 @@ def bilinear_interpolation(x,y,img1,img2):
     y1=math.floor(y)
     x2=math.ceil(x)
     y2=math.ceil(y)
-    for 
+    q11=img2[y1,x1]
+    q21=img2[y1,x2]
+    q12=img2[y2,x1]
+    q22=img2[y1,x1]
 
 def img_warping(img1,img2,homography):
     min_x,min_y,max_x,max_y=decide_out_size(img1,img2,homography)
@@ -195,7 +198,31 @@ def img_warping(img1,img2,homography):
         offset_y=0
     w=max_x+offset_x
     h=max_y+offset_y
-    out_image=np.full(())
+    out_image=np.full((h,w,3),0)
+    # move image 2 to output image
+    for i in range(img2.shape[0]):
+        for j in range(img2.shape[1]):
+            y=offset_y+i
+            x=offset_x+j
+            out_image[y,x,:]=img2[i,j,:]
+
+    # move image 1 to output image
+    h_inv=np.linalg.inv(homography)
+    for i in range(h):
+        for j in range(w):
+            p2=[j,i,1]
+            x,y,_=h_inv@p2.T
+            if x<0 or x>=img1.shape[1] or y<0 0r y>=img1.shape[0]:
+                continue
+            elif x<offset_x || x>offset_x+img2.shape[1] || y<offset_y || y>offset_y+img2.shape[0]:
+
+            out_image[i,j,:]=bilinear_interpolation(x,y,img1,img2)
+    
+
+    #out_image=np.float32(out_image/255.0)
+    #out_image=cv2.cvtColor(out_image,cv2.COLOR_BGR2RGB)
+    #plt.imshow(out_image)
+    #plt.show()
     
 
 if __name__ == "__main__":
