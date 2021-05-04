@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.spatial
+import math
 
 
 DATA_PATH = "./data"
@@ -82,35 +83,40 @@ def find_homography(coor1, coor2, coor3, coor4):
     p1[3, :] = [coor4[0], coor4[1]]
     p2[3, :] = [coor4[2], coor4[3]]
     for i in range(4):
-        H[i, :] = [
-            p1[i][1],
-            p1[i][0],
-            1,
-            0,
-            0,
-            0,
-            -p2[i][1] * p1[i][1],
-            -p2[i][1] * p1[i][0],
-            -p2[i][1],
-        ]
-        H[2 * i + 1, :] = [
-            0,
-            0,
-            0,
-            p1[i][1],
-            p1[i][0],
-            1,
-            -p2[i][0] * p1[i][1],
-            -p2[i][0] * p1[i][0],
-            -p2[i][0],
-        ]
-        [U, S, V] = np.linalg.svd(H)
-        homography = V[-1, :]
-        homography = np.reshape(homography, (3, 3))
-        return homography
+        x, y = p1[i]
+        x_prime, y_prime = p2[i]
+        H[2*1,:] =[x, y, 1, 0, 0, 0, -x*x_prime, -y*x_prime, -x_prime]
+        H[2*i+1,:]=[0, 0, 0, x, y, 1, -x*y_prime, -y*y_prime, -y_prime]
+    
+    # solve PH=0, H is the last column of v
+    #u, s, vh = np.linalg.svd(H) # vh (9,9)
+    #homography = (vh.T[:,-1] / vh[-1,-1]).reshape(3, 3)
+    homography,_=cv2.findHomography(p1,p2)
+    #homography=np.array(homography)
+    #print(homography)
+    #print(homography.shape)
+    return homography
+
+
+def count_inliers(correspondence,homography):
+    inliers=0
+    for i in range(correspondence.shape[0]):
+        src=[correspondence[i][0],correspondence[i][1],1]
+        dest=[correspondence[i][2],correspondence[i][3],1]
+        src=np.array(src)
+        dest=np.array(dest)
+        pred=homography@src.T
+        pred/=pred[2]
+        loss=np.sum(abs(pred-dest))
+        if loss<1:
+            inliers+=1
+    return inliers
+
 
 
 def RANSAC(correspondence):
+    max_inliers=0
+    j=0
     for i in range(1000):
         rand_choice = list(np.random.random(size=4) * correspondence.shape[0])
         rand_choice = list(map(int, rand_choice))
@@ -119,8 +125,14 @@ def RANSAC(correspondence):
         coor3 = correspondence[rand_choice[2]]
         coor4 = correspondence[rand_choice[3]]
         homography = find_homography(coor1, coor2, coor3, coor4)
-        print(homography)
-        break
+        inliers=count_inliers(correspondence,homography)
+        if inliers>max_inliers:
+            best_H=homography
+            max_inliers=inliers
+    print(max_inliers)
+    print("Best homography:")
+    print(best_H)
+    return homography
 
 
 def feature_matching(desc1, desc2, p1, p2, img1, img2):
@@ -144,6 +156,48 @@ def feature_matching(desc1, desc2, p1, p2, img1, img2):
     return correspondence
 
 
+def decide_out_size(img1,img2,homography):
+    four_corner=np.zeros((4,3))
+    four_corner[0,:]=[0,0,1]
+    four_corner[1,:]=[img1.shape[1],0,1]
+    four_corner[2,:]=[0,img1.shape[0],1]
+    four_corner[3,:]=[img1.shape[1],img1.shape[0],1]
+    min_x=0
+    min_y=0
+    max_y,max_x,_=img2.shape
+    for corner in four_corner:
+        trans_corner=homography@corner.T
+        trans_corner/=trans_corner[2]
+        x,y,_=trans_corner
+        min_x=min(min_x,math.floor(x))
+        min_y=min(min_y,math.floor(y))
+        max_x=max(max_x,math.ceil(x))
+        max_y=max(max_y,math.ceil(y))
+    return min_x,min_y,max_x,max_y
+
+
+def bilinear_interpolation(x,y,img1,img2):
+    x1=math.floor(x)
+    y1=math.floor(y)
+    x2=math.ceil(x)
+    y2=math.ceil(y)
+    for 
+
+def img_warping(img1,img2,homography):
+    min_x,min_y,max_x,max_y=decide_out_size(img1,img2,homography)
+    if min_x<0:
+        offset_x=-min_x
+    else:
+        offset_x=0
+    if min_y<0:
+        offset_y=-min_y
+    else:
+        offset_y=0
+    w=max_x+offset_x
+    h=max_y+offset_y
+    out_image=np.full(())
+    
+
 if __name__ == "__main__":
     image1 = cv2.imread(DATA_PATH + "/hill1.jpg")
     image2 = cv2.imread(DATA_PATH + "/hill2.jpg")
@@ -151,4 +205,5 @@ if __name__ == "__main__":
     correspondence = feature_matching(
         descriptors1, descriptors2, points1, points2, image1, image2
     )
-    RANSAC(correspondence)
+    homography=RANSAC(correspondence)
+    img_warping(image1,image2,homography)
