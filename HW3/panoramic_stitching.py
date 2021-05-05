@@ -6,7 +6,7 @@ import math
 import argparse
 
 
-DATA_PATH = "./data/"
+DATA_PATH = "./my_data/"
 SAVE_PATH = "./results/"
 
 
@@ -304,4 +304,6 @@ if __name__ == "__main__":
 
     # python panoramic_stitching.py --image_name hill --dist_thres 0.2
     # python panoramic_stitching.py --image_name S --dist_thres 0.3
-    # python .\panoramic_stitching.py --image_name tv --dist_thres 0.5
+    # python panoramic_stitching.py --image_name tv --dist_thres 0.5
+    # python panoramic_stitching.py --image_name stele --dist_thres 0.4
+    # python .\panoramic_stitching.py --image_name pond --dist_thres 0.6
