@@ -304,3 +304,4 @@ if __name__ == "__main__":
 
     # python panoramic_stitching.py --image_name hill --dist_thres 0.2
     # python panoramic_stitching.py --image_name S --dist_thres 0.3
+    # python .\panoramic_stitching.py --image_name tv --dist_thres 0.5
