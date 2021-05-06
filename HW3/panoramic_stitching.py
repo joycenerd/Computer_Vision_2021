@@ -20,6 +20,7 @@ def detect_interest_p(image1, image2):
 
 
 class DMatch:
+    # Save the feature matches
     def __init__(self, distance, trainIdx, queryIdx):
         self.distance = distance
         self.trainIdx = int(trainIdx)
@@ -72,6 +73,7 @@ def draw_matching(good_matches, kp1, kp2, img1, img2):
 
 
 def find_homography(coor1, coor2, coor3, coor4):
+    # solve homography via SVD
     H = np.zeros((8, 9))
     p1 = np.zeros((4, 2))
     p2 = np.zeros((4, 2))
@@ -91,7 +93,7 @@ def find_homography(coor1, coor2, coor3, coor4):
 
     # solve PH=0, H is the last column of v
     # u, s, vh = np.linalg.svd(H) # vh (9,9)
-    #homography = (vh.T[:,-1] / vh[-1,-1]).reshape(3, 3)
+    #homography = vh.T[:,-1].reshape(3, 3)
     homography, _ = cv2.findHomography(p1, p2)
     # homography=np.array(homography)
     # print(homography)
@@ -115,6 +117,7 @@ def count_inliers(correspondence, homography):
 
 
 def RANSAC(correspondence):
+    # RANSAC algorithm to find the best homography
     max_inliers = 0
     j = 0
     for i in range(1000):
@@ -232,14 +235,12 @@ def img_warping(img1, img2, homography, img_name):
     w = max_x+offset_x
     h = max_y+offset_y
     out_image = np.full((h, w, 3), 0)
-    existed = np.zeros((h, w))
     # move image 2 to output image
     for i in range(img2.shape[0]):
         for j in range(img2.shape[1]):
             y = offset_y+i
             x = offset_x+j
             out_image[y, x, :] = img2[i, j, :]
-            existed[y, x] = 1
     tmp_image = np.float32(out_image/255.0)
     tmp_image = cv2.cvtColor(tmp_image, cv2.COLOR_BGR2RGB)
     #plt.figure(figsize=(20, 10))
@@ -306,4 +307,4 @@ if __name__ == "__main__":
     # python panoramic_stitching.py --image_name S --dist_thres 0.3
     # python panoramic_stitching.py --image_name tv --dist_thres 0.5
     # python panoramic_stitching.py --image_name stele --dist_thres 0.4
-    # python .\panoramic_stitching.py --image_name pond --dist_thres 0.6
+    # python panoramic_stitching.py --image_name pond --dist_thres 0.6
