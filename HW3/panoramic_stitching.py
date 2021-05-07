@@ -6,7 +6,7 @@ import math
 import argparse
 
 
-DATA_PATH = "./my_data/"
+DATA_PATH = "./data/"
 SAVE_PATH = "./results/"
 
 
