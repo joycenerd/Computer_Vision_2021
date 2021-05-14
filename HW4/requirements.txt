@@ -1,2 +1,3 @@
 opencv
 matplotlib
+opencv-contrib-python
