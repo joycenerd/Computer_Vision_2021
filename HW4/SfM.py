@@ -6,14 +6,20 @@ import argparse
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--img", type=str, default="Mesona", help="Which set of image do you use")
+parser.add_argument("--img", type=str, default="Mesona",
+                    help="Which set of image do you use")
 parser.add_argument(
-    "--ratio", type=float, default=0.3, help="the ratio for ratio test used for finding good feature matching"
+    "--ratio", type=float, default=0.4, help="the ratio for ratio test used for finding good feature matching"
 )
+parser.add_argument("--iter", type=int, default=1000,
+                    help="the total interations for the RANSAC algorithm to run")
+parser.add_argument("--threshold", type=float, default=0.025,
+                    help="the threshold for RANSAC finding the best fundamental matrix")
 args = parser.parse_args()
 
 
 DATA_PATH = "./data/"
+SAVE_PATH = "./results/"
 
 
 def read_intrinsic():
@@ -22,10 +28,12 @@ def read_intrinsic():
         K2 = K1
     elif args.img == "Statue":
         K1 = np.array(
-            [5426.566895, 0.678017, 330.096680, 0.000000, 5423.133301, 648.950012, 0.000000, 0.000000, 1.000000]
+            [5426.566895, 0.678017, 330.096680, 0.000000,
+                5423.133301, 648.950012, 0.000000, 0.000000, 1.000000]
         )
         K2 = np.array(
-            [5426.566895, 0.678017, 387.430023, 0.000000, 5423.133301, 620.616699, 0.000000, 0.000000, 1.000000]
+            [5426.566895, 0.678017, 387.430023, 0.000000,
+                5423.133301, 620.616699, 0.000000, 0.000000, 1.000000]
         )
 
     # The last element should be 1 and reshape to (3,3)
@@ -118,9 +126,146 @@ def find_correspondence(img1, img2):
     plt.figure(figsize=(12, 5))
     plt.imshow(match_img)
     plt.axis("off")
+    plt.savefig(SAVE_PATH+"feature_matching.jpg")
     plt.show()
 
     return correspondence
+
+
+def get_normalize_x_x_prime(correspondence, rand_choice):
+    # get x,x' and normalize to [0,1]
+    # https://www.csie.ntu.edu.tw/~cyy/courses/vfx/20spring/lectures/handouts/lec10_sfm.pdf
+    x = np.zeros((8, 2), dtype=float)
+    x_prime = np.zeros((8, 2), dtype=float)
+
+    x = correspondence[rand_choice, :2]
+    x_prime = correspondence[rand_choice, 2:]
+    one_vec = np.ones(8)
+    one_vec = one_vec.reshape(-1, 1)
+    x = np.hstack((x, one_vec))
+    x = x.T
+    x_prime = np.hstack((x_prime, one_vec))
+    x_prime = x_prime.T
+
+    # normalize x
+    x_mean = np.mean(x, axis=1)
+    S = np.sqrt(2) / np.std(x[:2])
+    T = np.array([[S, 0, -S * x_mean[0]], [0, S, -S * x_mean[1]], [0, 0, 1]])
+    x = T @ x
+
+    # normalize x'
+    x_prime_mean = np.mean(x_prime, axis=1)
+    S_prime = np.sqrt(2) / np.std(x_prime[:2])
+    T_prime = np.array([[S_prime, 0, -S_prime * x_prime_mean[0]],
+                       [0, S_prime, -S_prime * x_prime_mean[1]], [0, 0, 1]])
+    x_prime = T_prime @ x_prime
+    x = x.T
+    x_prime = x_prime.T
+
+    return x, x_prime, T, T_prime
+
+
+def eight_p_algorithm(x, x_prime, T, T_prime):
+    # build the constraint matrix
+    A = np.zeros((8, 9), dtype=float)
+    for i in range(8):
+        A[i] = [x[i, 0]*x_prime[i, 0],
+                x[i, 0]*x_prime[i, 1],
+                x[i, 0],
+                x[i, 1]*x_prime[i, 0],
+                x[i, 1]*x_prime[i, 1],
+                x[i, 1],
+                x_prime[i, 0],
+                x_prime[i, 1],
+                1]
+
+    # extract the fundamental matrix from the column of V corresponding to the smallest singular value
+    U, S, V = np.linalg.svd(A)
+    F = V[-1].reshape((3, 3))
+
+    # enforce rank 2 constraint
+    U, D, V = np.linalg.svd(F)
+    D[2] = 0
+    F = U@(np.diag(D)@V)
+    F /= F[-1, -1]
+
+    # denormalize
+    F = T.T@F@T_prime
+    F /= F[2, 2]
+
+    return F
+
+
+def Sampson_err(correspondence, F):
+    x1 = correspondence[:, :2]
+    x2 = correspondence[:, 2:]
+    one_vec = np.ones((correspondence.shape[0], 1))
+    x1 = np.hstack((x1, one_vec))
+    x2 = np.hstack((x2, one_vec))
+
+    Fx1 = F@x1.T
+    Fx2 = F@x2.T
+    denom = Fx1[0]**2+Fx1[1]**2+Fx2[0]**2+Fx2[1]**2
+    err = (np.diag(x1@(F@x2.T)))**2/denom
+
+    return err
+
+
+def estimate_fundamental_mat(correspondence):
+    max_inlier = 0
+    best_F = np.zeros((3, 3), dtype=float)
+
+    for i in range(args.iter):
+        rand_choice = list(np.random.random(size=8) * correspondence.shape[0])
+        rand_choice = list(map(int, rand_choice))
+        x, x_prime, T, T_prime = get_normalize_x_x_prime(
+            correspondence, rand_choice)
+        F = eight_p_algorithm(x, x_prime, T, T_prime)
+        errors = Sampson_err(correspondence, F)
+        inlier = 0
+        for error in errors:
+            if error < args.threshold:
+                inlier += 1
+        if inlier > max_inlier:
+            max_inlier = inlier
+            best_F = F
+    return best_F
+
+
+def select_inliers(correspondence, F):
+    errors = Sampson_err(correspondence, F)
+    pts1 = []
+    pts2 = []
+    for i, error in enumerate(errors):
+        if error < args.threshold:
+            pts1.append(correspondence[i, :2])
+            pts2.append(correspondence[i, 2:])
+    pts1 = np.array(pts1)
+    pts2 = np.array(pts2)
+
+    return pts1, pts2
+
+
+def draw_epipolar_line(img1, img2, correspondence, F):
+    pts1, pts2 = select_inliers(correspondence, F)
+    h, w, c = img1.shape
+    lines1 = cv2.computeCorrespondEpilines(pts2.reshape((-1, 1, 2)), 2, F)
+    lines1 = lines1.reshape((-1, 3))
+    for h, pt1, pt2 in zip(lines1, pts1, pts2):
+        color = list(np.random.random(size=3) * 256)
+        pt1 = tuple(map(int, pt1))
+        pt2 = tuple(map(int, pt2))
+        x0, y0 = map(int, [0, -h[2]/h[1]])
+        x1, y1 = map(int, [w, -(h[2]+h[0]*w)/h[1]])
+        img1 = cv2.line(img1, (x0, y0), (x1, y1), color, 1)
+        img1 = cv2.circle(img1, tuple(pt1), 5, color, -1)
+        img2 = cv2.circle(img2, tuple(pt2), 5, color, -1)
+    epipole_img = np.concatenate((img1, img2), axis=1)
+    plt.figure(figsize=(12, 5))
+    plt.imshow(epipole_img)
+    plt.axis("off")
+    plt.savefig(SAVE_PATH+"epipolar_line.jpg")
+    plt.show()
 
 
 if __name__ == "__main__":
@@ -135,3 +280,8 @@ if __name__ == "__main__":
     print("")
     correspondence = find_correspondence(img1, img2)
     print(f"Number of correspondence: {correspondence.shape[0]}")
+    F = estimate_fundamental_mat(correspondence)
+    print("")
+    print("Fundamental matrix:")
+    print(F)
+    draw_epipolar_line(img1, img2, correspondence, F)
