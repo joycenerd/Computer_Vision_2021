@@ -269,8 +269,8 @@ def draw_epipolar_line(img1, img2, correspondence, F):
 
 
 if __name__ == "__main__":
-    img1 = cv2.imread(DATA_PATH + args.img)
-    img2 = cv2.imread(DATA_PATH + args.img)
+    img1 = cv2.imread(DATA_PATH + "Mesona1.JPG")
+    img2 = cv2.imread(DATA_PATH + "Mesona2.JPG")
     K1, K2 = read_intrinsic()
     print("Intrinsic matrix of K1:")
     print(K1)
