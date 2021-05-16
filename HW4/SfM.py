@@ -126,7 +126,7 @@ def find_correspondence(img1, img2):
     plt.figure(figsize=(12, 5))
     plt.imshow(match_img)
     plt.axis("off")
-    plt.savefig(SAVE_PATH+"feature_matching.jpg")
+    plt.savefig(SAVE_PATH+args.img+"_feature_matching.jpg")
     plt.show()
 
     return correspondence
@@ -264,13 +264,13 @@ def draw_epipolar_line(img1, img2, correspondence, F):
     plt.figure(figsize=(12, 5))
     plt.imshow(epipole_img)
     plt.axis("off")
-    plt.savefig(SAVE_PATH+"epipolar_line.jpg")
+    plt.savefig(SAVE_PATH+args.img+"_epipolar_line.jpg")
     plt.show()
 
 
 if __name__ == "__main__":
-    img1 = cv2.imread(DATA_PATH + "Mesona1.JPG")
-    img2 = cv2.imread(DATA_PATH + "Mesona2.JPG")
+    img1 = cv2.imread(DATA_PATH + args.img)
+    img2 = cv2.imread(DATA_PATH + args.img)
     K1, K2 = read_intrinsic()
     print("Intrinsic matrix of K1:")
     print(K1)
