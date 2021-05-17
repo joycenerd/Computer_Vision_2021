@@ -3,23 +3,76 @@ import matplotlib.pyplot as plt
 import numpy as np
 import cv2
 import argparse
+import glob
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--img", type=str, default="Mesona",
-                    help="Which set of image do you use")
+parser.add_argument("--img", type=str, default="books", help="Which set of image do you use")
 parser.add_argument(
     "--ratio", type=float, default=0.4, help="the ratio for ratio test used for finding good feature matching"
 )
-parser.add_argument("--iter", type=int, default=1000,
-                    help="the total interations for the RANSAC algorithm to run")
-parser.add_argument("--threshold", type=float, default=0.025,
-                    help="the threshold for RANSAC finding the best fundamental matrix")
+parser.add_argument("--iter", type=int, default=1000, help="the total interations for the RANSAC algorithm to run")
+parser.add_argument(
+    "--threshold", type=float, default=0.025, help="the threshold for RANSAC finding the best fundamental matrix"
+)
 args = parser.parse_args()
 
 
 DATA_PATH = "./data/"
 SAVE_PATH = "./results/"
+CHECKERBOARDS_PATH = "./checkerboards/"
+
+
+def camera_calibration():
+    # prepare object points, like (0,0,0), (1,0,0), (2,0,0) ....,(6,5,0)
+    # (8,6) is for the given testing images.
+    # If you use the another data (e.g. pictures you take by your smartphone),
+    # you need to set the corresponding numbers.
+    corner_x = 7
+    corner_y = 7
+    objp = np.zeros((corner_x * corner_y, 3), np.float32)
+    objp[:, :2] = np.mgrid[0:corner_x, 0:corner_y].T.reshape(-1, 2)
+
+    # Arrays to store object points and image points from all the images.
+    objpoints = []  # points on object plane
+    imgpoints = []  # points in image plane.
+
+    # Make a list of calibration images
+    # images = glob.glob('data/*.jpg')
+    images = glob.glob(CHECKERBOARDS_PATH + "*.jpeg")
+
+    # Step through the list and search for chessboard corners
+    print("Start finding chessboard corners...")
+    for idx, fname in enumerate(images):
+        img = cv2.imread(fname)
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+        # rotate the image with it is horizontal (default verticle)
+        if img.shape[1] - img.shape[0] >= 0:
+            print(fname, " need rotation")
+            gray = np.rot90(gray)
+
+        # Find the chessboard corners
+        print("find the chessboard corners of", fname)
+        ret, corners = cv2.findChessboardCorners(gray, (corner_x, corner_y), None)
+
+        # If found, add object points, image points
+        if ret == True:
+            objpoints.append(objp)  # points on object plane
+            imgpoints.append(corners)  # points on image plane
+
+            # Draw and display the corners
+            cv2.drawChessboardCorners(img, (corner_x, corner_y), corners, ret)
+            plt.imshow(img)
+
+    print("Camera calibration...")
+    img_size = (img.shape[1], img.shape[0])
+    # You need to comment these functions and write your calibration function from scratch.
+    # Notice that rvecs is rotation vector, not the rotation matrix, and tvecs is translation vector.
+    # In practice, you'll derive extrinsics matrixes directly. The shape must be [pts_num,3,4], and use them to plot.
+    ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, img_size, None, None)
+
+    return mtx
 
 
 def read_intrinsic():
@@ -28,13 +81,15 @@ def read_intrinsic():
         K2 = K1
     elif args.img == "Statue":
         K1 = np.array(
-            [5426.566895, 0.678017, 330.096680, 0.000000,
-                5423.133301, 648.950012, 0.000000, 0.000000, 1.000000]
+            [5426.566895, 0.678017, 330.096680, 0.000000, 5423.133301, 648.950012, 0.000000, 0.000000, 1.000000]
         )
         K2 = np.array(
-            [5426.566895, 0.678017, 387.430023, 0.000000,
-                5423.133301, 620.616699, 0.000000, 0.000000, 1.000000]
+            [5426.566895, 0.678017, 387.430023, 0.000000, 5423.133301, 620.616699, 0.000000, 0.000000, 1.000000]
         )
+    elif args.img == "books":
+        intrinsic = camera_calibration()
+        K1 = intrinsic
+        K2 = intrinsic
 
     # The last element should be 1 and reshape to (3,3)
     K1 /= K1[-1]
@@ -126,7 +181,7 @@ def find_correspondence(img1, img2):
     plt.figure(figsize=(12, 5))
     plt.imshow(match_img)
     plt.axis("off")
-    plt.savefig(SAVE_PATH+args.img+"_feature_matching.jpg")
+    plt.savefig(SAVE_PATH + args.img + "_feature_matching.jpg")
     plt.show()
 
     return correspondence
@@ -156,8 +211,7 @@ def get_normalize_x_x_prime(correspondence, rand_choice):
     # normalize x'
     x_prime_mean = np.mean(x_prime, axis=1)
     S_prime = np.sqrt(2) / np.std(x_prime[:2])
-    T_prime = np.array([[S_prime, 0, -S_prime * x_prime_mean[0]],
-                       [0, S_prime, -S_prime * x_prime_mean[1]], [0, 0, 1]])
+    T_prime = np.array([[S_prime, 0, -S_prime * x_prime_mean[0]], [0, S_prime, -S_prime * x_prime_mean[1]], [0, 0, 1]])
     x_prime = T_prime @ x_prime
     x = x.T
     x_prime = x_prime.T
@@ -169,15 +223,17 @@ def eight_p_algorithm(x, x_prime, T, T_prime):
     # build the constraint matrix
     A = np.zeros((8, 9), dtype=float)
     for i in range(8):
-        A[i] = [x[i, 0]*x_prime[i, 0],
-                x[i, 0]*x_prime[i, 1],
-                x[i, 0],
-                x[i, 1]*x_prime[i, 0],
-                x[i, 1]*x_prime[i, 1],
-                x[i, 1],
-                x_prime[i, 0],
-                x_prime[i, 1],
-                1]
+        A[i] = [
+            x[i, 0] * x_prime[i, 0],
+            x[i, 0] * x_prime[i, 1],
+            x[i, 0],
+            x[i, 1] * x_prime[i, 0],
+            x[i, 1] * x_prime[i, 1],
+            x[i, 1],
+            x_prime[i, 0],
+            x_prime[i, 1],
+            1,
+        ]
 
     # extract the fundamental matrix from the column of V corresponding to the smallest singular value
     U, S, V = np.linalg.svd(A)
@@ -186,11 +242,11 @@ def eight_p_algorithm(x, x_prime, T, T_prime):
     # enforce rank 2 constraint
     U, D, V = np.linalg.svd(F)
     D[2] = 0
-    F = U@(np.diag(D)@V)
+    F = U @ (np.diag(D) @ V)
     F /= F[-1, -1]
 
     # denormalize
-    F = T.T@F@T_prime
+    F = T.T @ F @ T_prime
     F /= F[2, 2]
 
     return F
@@ -203,10 +259,10 @@ def Sampson_err(correspondence, F):
     x1 = np.hstack((x1, one_vec))
     x2 = np.hstack((x2, one_vec))
 
-    Fx1 = F@x1.T
-    Fx2 = F@x2.T
-    denom = Fx1[0]**2+Fx1[1]**2+Fx2[0]**2+Fx2[1]**2
-    err = (np.diag(x1@(F@x2.T)))**2/denom
+    Fx1 = F @ x1.T
+    Fx2 = F @ x2.T
+    denom = Fx1[0] ** 2 + Fx1[1] ** 2 + Fx2[0] ** 2 + Fx2[1] ** 2
+    err = (np.diag(x1 @ (F @ x2.T))) ** 2 / denom
 
     return err
 
@@ -218,8 +274,7 @@ def estimate_fundamental_mat(correspondence):
     for i in range(args.iter):
         rand_choice = list(np.random.random(size=8) * correspondence.shape[0])
         rand_choice = list(map(int, rand_choice))
-        x, x_prime, T, T_prime = get_normalize_x_x_prime(
-            correspondence, rand_choice)
+        x, x_prime, T, T_prime = get_normalize_x_x_prime(correspondence, rand_choice)
         F = eight_p_algorithm(x, x_prime, T, T_prime)
         errors = Sampson_err(correspondence, F)
         inlier = 0
@@ -255,8 +310,8 @@ def draw_epipolar_line(img1, img2, correspondence, F):
         color = list(np.random.random(size=3) * 256)
         pt1 = tuple(map(int, pt1))
         pt2 = tuple(map(int, pt2))
-        x0, y0 = map(int, [0, -h[2]/h[1]])
-        x1, y1 = map(int, [w, -(h[2]+h[0]*w)/h[1]])
+        x0, y0 = map(int, [0, -h[2] / h[1]])
+        x1, y1 = map(int, [w, -(h[2] + h[0] * w) / h[1]])
         img1 = cv2.line(img1, (x0, y0), (x1, y1), color, 1)
         img1 = cv2.circle(img1, tuple(pt1), 5, color, -1)
         img2 = cv2.circle(img2, tuple(pt2), 5, color, -1)
@@ -264,13 +319,13 @@ def draw_epipolar_line(img1, img2, correspondence, F):
     plt.figure(figsize=(12, 5))
     plt.imshow(epipole_img)
     plt.axis("off")
-    plt.savefig(SAVE_PATH+args.img+"_epipolar_line.jpg")
+    plt.savefig(SAVE_PATH + args.img + "_epipolar_line.jpg")
     plt.show()
 
 
 if __name__ == "__main__":
-    img1 = cv2.imread(DATA_PATH + "Mesona1.JPG")
-    img2 = cv2.imread(DATA_PATH + "Mesona2.JPG")
+    img1 = cv2.imread(DATA_PATH + "books1.jpeg")
+    img2 = cv2.imread(DATA_PATH + "books2.jpeg")
     K1, K2 = read_intrinsic()
     print("Intrinsic matrix of K1:")
     print(K1)
