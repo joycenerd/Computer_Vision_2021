@@ -7,18 +7,21 @@ import glob
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--img", type=str, default="books", help="Which set of image do you use")
+parser.add_argument("--img", type=str, default="books",
+                    help="Which set of image do you use")
 parser.add_argument(
-    "--ratio", type=float, default=0.4, help="the ratio for ratio test used for finding good feature matching"
+    "--ratio", type=float, default=0.2, help="the ratio for ratio test used for finding good feature matching"
 )
-parser.add_argument("--iter", type=int, default=3000, help="the total interations for the RANSAC algorithm to run")
+parser.add_argument("--iter", type=int, default=3000,
+                    help="the total interations for the RANSAC algorithm to run")
 parser.add_argument(
-    "--threshold", type=float, default=0.06, help="the threshold for RANSAC finding the best fundamental matrix"
+    "--threshold", type=float, default=0.025, help="the threshold for RANSAC finding the best fundamental matrix"
 )
 args = parser.parse_args()
 
-# python SfM.py --img Mesona --ratio 0.4 --iter 1000 --threshold 0.025
+# python SfM.py --img Mesona --ratio 0.35 --iter 1000 --threshold 0.025
 # python SfM.py --img Statue --ratio 0.4 --iter 1000 --threshold 0.025
+# python SfM.py --img books --ratio 0.2 --iter 3000 --threshold 0.025
 
 
 DATA_PATH = "./data/"
@@ -57,7 +60,8 @@ def camera_calibration():
 
         # Find the chessboard corners
         print("find the chessboard corners of", fname)
-        ret, corners = cv2.findChessboardCorners(gray, (corner_x, corner_y), None)
+        ret, corners = cv2.findChessboardCorners(
+            gray, (corner_x, corner_y), None)
 
         # If found, add object points, image points
         if ret == True:
@@ -72,7 +76,8 @@ def camera_calibration():
     # You need to comment these functions and write your calibration function from scratch.
     # Notice that rvecs is rotation vector, not the rotation matrix, and tvecs is translation vector.
     # In practice, you'll derive extrinsics matrixes directly. The shape must be [pts_num,3,4], and use them to plot.
-    ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, img_size, None, None)
+    ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(
+        objpoints, imgpoints, img_size, None, None)
 
     return mtx
 
@@ -83,10 +88,12 @@ def read_intrinsic():
         K2 = K1
     elif args.img == "Statue":
         K1 = np.array(
-            [5426.566895, 0.678017, 330.096680, 0.000000, 5423.133301, 648.950012, 0.000000, 0.000000, 1.000000]
+            [5426.566895, 0.678017, 330.096680, 0.000000,
+                5423.133301, 648.950012, 0.000000, 0.000000, 1.000000]
         )
         K2 = np.array(
-            [5426.566895, 0.678017, 387.430023, 0.000000, 5423.133301, 620.616699, 0.000000, 0.000000, 1.000000]
+            [5426.566895, 0.678017, 387.430023, 0.000000,
+                5423.133301, 620.616699, 0.000000, 0.000000, 1.000000]
         )
     elif args.img == "books":
         intrinsic = camera_calibration()
@@ -154,9 +161,9 @@ def draw_matching(kp1, kp2, img1, img2):
         y2 = int(coor2[1])
 
         # draw circle on matching points and line between them
-        match_img = cv2.circle(match_img, (x1, y1), 5, color, 4)
-        match_img = cv2.circle(match_img, (x2, y2), 5, color, 4)
-        match_img = cv2.line(match_img, (x1, y1), (x2, y2), color, 4)
+        match_img = cv2.circle(match_img, (x1, y1), 3, color, 3)
+        match_img = cv2.circle(match_img, (x2, y2), 3, color, 3)
+        match_img = cv2.line(match_img, (x1, y1), (x2, y2), color, 1)
 
     return match_img
 
@@ -213,7 +220,8 @@ def get_normalize_x_x_prime(correspondence, rand_choice):
     # normalize x'
     x_prime_mean = np.mean(x_prime, axis=1)
     S_prime = np.sqrt(2) / np.std(x_prime[:2])
-    T_prime = np.array([[S_prime, 0, -S_prime * x_prime_mean[0]], [0, S_prime, -S_prime * x_prime_mean[1]], [0, 0, 1]])
+    T_prime = np.array([[S_prime, 0, -S_prime * x_prime_mean[0]],
+                       [0, S_prime, -S_prime * x_prime_mean[1]], [0, 0, 1]])
     x_prime = T_prime @ x_prime
     x = x.T
     x_prime = x_prime.T
@@ -276,7 +284,8 @@ def estimate_fundamental_mat(correspondence):
     for i in range(args.iter):
         rand_choice = list(np.random.random(size=8) * correspondence.shape[0])
         rand_choice = list(map(int, rand_choice))
-        x, x_prime, T, T_prime = get_normalize_x_x_prime(correspondence, rand_choice)
+        x, x_prime, T, T_prime = get_normalize_x_x_prime(
+            correspondence, rand_choice)
         F = eight_p_algorithm(x, x_prime, T, T_prime)
         errors = Sampson_err(correspondence, F)
         inlier = 0
@@ -316,9 +325,9 @@ def draw_epipolar_line(img1, img2, correspondence, F):
         pt2 = tuple(map(int, pt2))
         x0, y0 = map(int, [0, -h[2] / h[1]])
         x1, y1 = map(int, [w, -(h[2] + h[0] * w) / h[1]])
-        img1 = cv2.line(img1, (x0, y0), (x1, y1), color, 4)
-        img1 = cv2.circle(img1, tuple(pt1), 6, color, 6)
-        img2 = cv2.circle(img2, tuple(pt2), 6, color, 6)
+        img1 = cv2.line(img1, (x0, y0), (x1, y1), color, 1)
+        img1 = cv2.circle(img1, tuple(pt1), 3, color, 3)
+        img2 = cv2.circle(img2, tuple(pt2), 3, color, 3)
 
     epipole_img = np.concatenate((img1, img2), axis=1)
     epipole_img = cv2.cvtColor(epipole_img, cv2.COLOR_BGR2RGB)
@@ -337,8 +346,8 @@ def select_img():
         img1_name = "Statue1.bmp"
         img2_name = "Statue2.bmp"
     elif args.img == "books":
-        img1_name = "books1.jpeg"
-        img2_name = "books2.jpeg"
+        img1_name = "books1.jpg"
+        img2_name = "books2.jpg"
 
     return img1_name, img2_name
 
