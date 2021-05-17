@@ -18,19 +18,19 @@ conda activate sfm
 
 ## Quickstart
 
-If you have your own pair data please name them the same and separate them by "1" and "2" at the end of the name. and put them in the "data" folder.
+If you have your own pair data please name them the same and separate them by "1" and "2" at the end of the name. and put them in the "data" folder. And also if you don't have the intrinsic matrix of your own data, you should take some pictures in the checkerboard and put it in the "checkerboards" folder for camera calibration.
 
 ```
-python SfM.py --img Mesona --iter 1000 --ratio 0.4 --threshold 0.025
+python SfM.py --img books --iter 1000 --ratio 0.4 --threshold 0.025
 ```
 
 ## Results
 
 * Feature matching
 
-<img src="./results/Mesona_feature_matching.jpg">
+<img src="./results/books_feature_matching.jpg">
 
 * Epipolar line
 
-<img src="./results/Mesona_epipolar_line.jpg">
+<img src="./results/books_epipolar_line.jpg">
 

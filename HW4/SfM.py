@@ -11,11 +11,14 @@ parser.add_argument("--img", type=str, default="books", help="Which set of image
 parser.add_argument(
     "--ratio", type=float, default=0.4, help="the ratio for ratio test used for finding good feature matching"
 )
-parser.add_argument("--iter", type=int, default=1000, help="the total interations for the RANSAC algorithm to run")
+parser.add_argument("--iter", type=int, default=3000, help="the total interations for the RANSAC algorithm to run")
 parser.add_argument(
-    "--threshold", type=float, default=0.025, help="the threshold for RANSAC finding the best fundamental matrix"
+    "--threshold", type=float, default=0.06, help="the threshold for RANSAC finding the best fundamental matrix"
 )
 args = parser.parse_args()
+
+# python SfM.py --img Mesona --ratio 0.4 --iter 1000 --threshold 0.025
+# python SfM.py --img Statue --ratio 0.4 --iter 1000 --threshold 0.025
 
 
 DATA_PATH = "./data/"
@@ -63,7 +66,6 @@ def camera_calibration():
 
             # Draw and display the corners
             cv2.drawChessboardCorners(img, (corner_x, corner_y), corners, ret)
-            plt.imshow(img)
 
     print("Camera calibration...")
     img_size = (img.shape[1], img.shape[0])
@@ -92,11 +94,11 @@ def read_intrinsic():
         K2 = intrinsic
 
     # The last element should be 1 and reshape to (3,3)
-    K1 /= K1[-1]
     K1 = K1.reshape((3, 3))
+    K1 /= K1[2, 2]
 
-    K2 /= K2[-1]
     K2 = K2.reshape((3, 3))
+    K2 /= K2[2, 2]
 
     return K1, K2
 
@@ -152,9 +154,9 @@ def draw_matching(kp1, kp2, img1, img2):
         y2 = int(coor2[1])
 
         # draw circle on matching points and line between them
-        match_img = cv2.circle(match_img, (x1, y1), 5, color, 1)
-        match_img = cv2.circle(match_img, (x2, y2), 5, color, 1)
-        match_img = cv2.line(match_img, (x1, y1), (x2, y2), color, 1)
+        match_img = cv2.circle(match_img, (x1, y1), 5, color, 4)
+        match_img = cv2.circle(match_img, (x2, y2), 5, color, 4)
+        match_img = cv2.line(match_img, (x1, y1), (x2, y2), color, 4)
 
     return match_img
 
@@ -178,7 +180,7 @@ def find_correspondence(img1, img2):
     # draw feature matching
     match_img = draw_matching(kp1, kp2, img1, img2)
     match_img = cv2.cvtColor(match_img, cv2.COLOR_BGR2RGB)
-    plt.figure(figsize=(12, 5))
+    plt.figure(figsize=(12, 10))
     plt.imshow(match_img)
     plt.axis("off")
     plt.savefig(SAVE_PATH + args.img + "_feature_matching.jpg")
@@ -284,6 +286,8 @@ def estimate_fundamental_mat(correspondence):
         if inlier > max_inlier:
             max_inlier = inlier
             best_F = F
+    print(f"Max inliers: {max_inlier}")
+
     return best_F
 
 
@@ -312,20 +316,37 @@ def draw_epipolar_line(img1, img2, correspondence, F):
         pt2 = tuple(map(int, pt2))
         x0, y0 = map(int, [0, -h[2] / h[1]])
         x1, y1 = map(int, [w, -(h[2] + h[0] * w) / h[1]])
-        img1 = cv2.line(img1, (x0, y0), (x1, y1), color, 1)
-        img1 = cv2.circle(img1, tuple(pt1), 5, color, -1)
-        img2 = cv2.circle(img2, tuple(pt2), 5, color, -1)
+        img1 = cv2.line(img1, (x0, y0), (x1, y1), color, 4)
+        img1 = cv2.circle(img1, tuple(pt1), 6, color, 6)
+        img2 = cv2.circle(img2, tuple(pt2), 6, color, 6)
+
     epipole_img = np.concatenate((img1, img2), axis=1)
-    plt.figure(figsize=(12, 5))
+    epipole_img = cv2.cvtColor(epipole_img, cv2.COLOR_BGR2RGB)
+    plt.figure(figsize=(12, 10))
     plt.imshow(epipole_img)
     plt.axis("off")
     plt.savefig(SAVE_PATH + args.img + "_epipolar_line.jpg")
     plt.show()
 
 
+def select_img():
+    if args.img == "Mesona":
+        img1_name = "Mesona1.JPG"
+        img2_name = "Mesona2.JPG"
+    elif args.img == "Statue":
+        img1_name = "Statue1.bmp"
+        img2_name = "Statue2.bmp"
+    elif args.img == "books":
+        img1_name = "books1.jpeg"
+        img2_name = "books2.jpeg"
+
+    return img1_name, img2_name
+
+
 if __name__ == "__main__":
-    img1 = cv2.imread(DATA_PATH + "books1.jpeg")
-    img2 = cv2.imread(DATA_PATH + "books2.jpeg")
+    img1_name, img2_name = select_img()
+    img1 = cv2.imread(DATA_PATH + img1_name)
+    img2 = cv2.imread(DATA_PATH + img2_name)
     K1, K2 = read_intrinsic()
     print("Intrinsic matrix of K1:")
     print(K1)
