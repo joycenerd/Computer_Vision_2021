@@ -122,9 +122,17 @@ def make_dataset(mode):
                              0.229, 0.224, 0.225])
     ])
 
+    data_transform_test=transforms.Compose([
+        transforms.Resize((opt.img_size,opt.img_size)),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485,0.456,0.406],std=[0.229,0.224,0.225])
+    ])
+
     if(mode == "train"):
         data_set = SceneDataset(opt.data_root, mode, data_transform_train)
     elif(mode == "eval"):
         data_set = SceneDataset(opt.data_root, mode, data_transform_dev)
+    elif(mode=="test"):
+        data_set=SceneDataset(opt.data_root, mode, data_transform_test)
 
     return data_set

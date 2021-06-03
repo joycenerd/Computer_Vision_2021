@@ -1,11 +1,20 @@
 from .resnest.restnest import get_model
-from efficientnet_pytorch import EfficientNet
 from options import opt
+
+from efficientnet_pytorch import EfficientNet
+import torch
 
 
 def get_net(model):
-    if model[0:8] == 'resnest':
-        get_model(model)
+    if model == 'resnest50':
+        model = torch.hub.load('zhanghang1989/ResNeSt', 'resnest50', pretrained=True)
+        return model
+    elif model == 'resnest101':
+        model = torch.hub.load('zhanghang1989/ResNeSt', 'resnest101', pretrained=True)
+        return model
+    elif model == 'resnest200':
+        model = torch.hub.load('zhanghang1989/ResNeSt', 'resnest200', pretrained=True)
+        return model
     elif model == 'efficientnet-b7':
         model = EfficientNet.from_pretrained(
             'efficientnet-b7', num_classes=opt.num_classes)

@@ -15,7 +15,7 @@ from pathlib import Path
 import copy
 
 
-writer = SummaryWriter(f"runs/{opt.model}-2", comment=f"lr={opt.lr}")
+writer = SummaryWriter(f"runs/{opt.model}", comment=f"lr={opt.lr}")
 
 
 def train():
@@ -31,10 +31,11 @@ def train():
 
     # select model
     net = get_net(opt.model)
-    if (opt.model[0:9] == 'resnest'):
-        model = net(opt.num_classes)
+    # if (opt.model[0:9] == 'resnest'):
+        # model = net(opt.num_classes)
     model = net
-    model = model.cuda(opt.cuda_devices)
+    #model= torch.load("checkpoint/efficientnet-b3/model-50epoch-0.93-acc-all_transform.pth")
+    model=model.cuda(opt.cuda_devices)
     best_model_params_acc = copy.deepcopy(model.state_dict())
     best_model_params_loss = copy.deepcopy(model.state_dict())
 
@@ -63,9 +64,6 @@ def train():
         for i, (inputs, labels) in enumerate(tqdm(train_loader)):
             inputs = Variable(inputs.cuda(opt.cuda_devices))
             labels = Variable(labels.cuda(opt.cuda_devices))
-            grid = torchvision.utils.make_grid(inputs)
-            writer.add_image("images", grid)
-            writer.add_graph(model, inputs)
 
             optimizer.zero_grad()
             outputs = model(inputs)
@@ -111,7 +109,10 @@ def train():
         writer.add_scalar("eval loss/epochs", eval_loss, epoch+1)
         writer.add_scalar("eval accuracy/epochs", eval_acc, epoch+1)
 
-        print(f'Eval loss: {eval_loss:.4f}\taccuracy: {eval_acc:.4f}\n')
+        print(f'Eval loss: {eval_loss:.4f}\taccuracy: {eval_acc:.4f}')
+        
+        lr=scheduler.optimizer.param_groups[0]['lr']
+        print(f"Current learning rate: {lr}\n")
 
         scheduler.step(eval_loss)
         early_stopping(eval_loss, model)
@@ -137,16 +138,16 @@ def train():
 
             best_model_params_loss = copy.deepcopy(model.state_dict())
 
-        if (epoch+1) % 50 == 0:
+        if (epoch+1) % 10 == 0:
             model.load_state_dict(best_model_params_loss)
             weight_path = Path(opt.checkpoint_dir).joinpath(
                 f'model-{epoch+1}epoch-{best_loss:.02f}-loss-{the_acc:.02f}-acc.pth')
-            torch.save(model, str(weight_path))
+            torch.save(model.state_dict(), str(weight_path))
 
             model.load_state_dict(best_model_params_acc)
             weight_path = Path(opt.checkpoint_dir).joinpath(
                 f'model-{epoch+1}epoch-{best_acc:.02f}-acc.pth')
-            torch.save(model, str(weight_path))
+            torch.save(model.state_dict(), str(weight_path))
 
             record.write(f'{epoch+1}\n')
             record.write(
