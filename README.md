@@ -1,5 +1,5 @@
 # NCTU-CV_2021
-Codes for Computer Vision course in the spring semester in NCTU
+Codes for Computer Vision course in the spring semester at NCTU
 
 ## Camera Calibration ([link](./HW1))
 Camera calibration without using `cv2.calibrateCamera()`
