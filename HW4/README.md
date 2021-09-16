@@ -7,7 +7,7 @@
 * Anaconda or Miniconda
 * Python3
 
-This is an implementation of structure of motion. We first get the intrinsic matrix for all of out photos. Then we Find all the correspondences for the pair images. After that we estimate the fundamental matrix and draw the epipolar line. (To be continued...)
+This is an implementation of structure of motion. We first get the intrinsic matrix for all of out photos. Then we Find all the correspondences for the pair images. After that we estimate the fundamental matrix and draw the epipolar line. In order to find the camera matrix we need to find the essential matrix first. At last, we get the 3D coordinate by doing triangulation on all correspondence.
 
 ## Setup
 

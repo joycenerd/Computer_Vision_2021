@@ -1,6 +1,12 @@
 # Scene Classification
 
-The is the project that can do 15 scnene (Coast, Forest, Highway, Industrial, InsideCity, Kitchen, LivingRoom, Mountain, Office, OpenCountry, Store, Street, Suburb, TallBuilding) classification. We used EfficientNet and ResNest and achieve accuracy 93.78%.
+The is the project that can do 15 scenes (Coast, Forest, Highway, Industrial, InsideCity, Kitchen, LivingRoom, Mountain, Office, OpenCountry, Store, Street, Suburb, TallBuilding) classification. We utilize some methods as follow:
+  1. EfficientNet which can achieve accuracy 93.78%
+  2. ResNest
+  3. Tiny images representation + nearest neighbor classifier
+  4. Bag of SIFT + nearest neighbor classifier
+  5. Bag of SIFT representation + linear SVM classifier
+  6. Simple CNN
 
 ## Getting Started
 
@@ -68,5 +74,11 @@ python train.py --model efficientnet-b4 --cuda_devices 0 --img_size 320 --train_
 ```
 python test.py --model efficientnet-b4 --cuda_devices 1 --weight_path checkpoint/efficientnet-b4/0.9378_model-50epoch-0.94-acc.pth --img_size 320
 ```
+
+### Other method
+
+* Tiny images representations: `./Tiny_KNN.ipynb`
+* Bag of SIFT: `./HW5_BOS`
+* Simple CNNN: `./CNN`
 
 

@@ -3,7 +3,7 @@
 ## Contact
 
 Any questions and suggestions are welcome!
-Zhi-Yi Chin zchin31415@gmail.com
+Zhi-Yi Chin joycenerd.cs09@nycu.edu.tw
 
 ## Introduction
 
